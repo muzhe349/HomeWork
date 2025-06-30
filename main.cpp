@@ -4,53 +4,6 @@
 using namespace std;
 using namespace cv;
 
-// 全局变量用于存储处理结果
-Mat originalImage, processedImage, resultImage;
-vector<Mat> characters;
-vector<string> recognitionResults;
-bool showOriginal = true;
-bool showProcessed = false;
-bool showResult = false;
-
-// 鼠标回调函数
-void mouseCallback(int event, int x, int y, int flags, void* userdata) {
-    if (event == EVENT_LBUTTONDOWN) {
-        // 点击切换显示模式
-        showOriginal = !showOriginal;
-        showProcessed = !showProcessed;
-        
-        if (showOriginal) {
-            imshow("车牌识别系统", originalImage);
-        } else if (showProcessed) {
-            imshow("车牌识别系统", processedImage);
-        }
-    }
-}
-
-// 创建控制面板
-void createControlPanel() {
-    Mat controlPanel = Mat::zeros(100, 400, CV_8UC3);
-    
-    // 绘制按钮
-    rectangle(controlPanel, Point(10, 10), Point(90, 40), Scalar(0, 255, 0), -1);
-    putText(controlPanel, "原图", Point(25, 30), FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0, 0, 0), 2);
-    
-    rectangle(controlPanel, Point(110, 10), Point(190, 40), Scalar(255, 0, 0), -1);
-    putText(controlPanel, "处理", Point(125, 30), FONT_HERSHEY_SIMPLEX, 0.7, Scalar(255, 255, 255), 2);
-    
-    rectangle(controlPanel, Point(210, 10), Point(290, 40), Scalar(0, 0, 255), -1);
-    putText(controlPanel, "结果", Point(225, 30), FONT_HERSHEY_SIMPLEX, 0.7, Scalar(255, 255, 255), 2);
-    
-    // 显示识别结果
-    string resultText = "识别结果: ";
-    for (const auto& result : recognitionResults) {
-        resultText += result + " ";
-    }
-    putText(controlPanel, resultText, Point(10, 70), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(255, 255, 255), 1);
-    
-    imshow("控制面板", controlPanel);
-}
-
 void showimg(Mat img) {
     if (img.data == nullptr) {//nullptr是空指针常量
         cout << "img.data is null" << endl;
@@ -216,17 +169,8 @@ int main()    {
     SetConsoleOutputCP(65001);
     Mat image;//mat定义矩阵变量
     image = imread("D:\\code\\vscode_opencv\\333.jpg");//读取图片
-    
-    // 保存原图用于显示
-    originalImage = image.clone();
-    
-    // 创建窗口并设置鼠标回调
-    namedWindow("车牌识别系统", WINDOW_AUTOSIZE);
-    setMouseCallback("车牌识别系统", mouseCallback);
-    
-    // 显示原图
-    imshow("车牌识别系统", originalImage);
-    
+    // showimg(image);
+
     //灰度预处理
     Mat gray;
     cvtColor(image,gray,COLOR_BGR2GRAY);//"convert color"（转换颜色）
@@ -272,10 +216,9 @@ int main()    {
     vector<Rect> rects={candidateRects[0]};
     Mat plateImg=image(rects[0]);
     Mat resized=resizeToMinWidth(plateImg,100);
-    
-    // 保存处理后的图像用于显示
-    processedImage = resized.clone();
-    
+    // showimg(plateImg);
+    // showimg(resized);
+
     //二值化
     Mat resizeGray,binary;//调整大小的灰度图，二值图
     cvtColor(resized,resizeGray,COLOR_BGR2GRAY);
@@ -296,10 +239,11 @@ int main()    {
         }
     }
     sort(candidateRects.begin(), candidateRects.end(), CompareRectX);
-    characters.clear();
+    vector<Mat> characters;
     for (const auto &rect:candidateRects) {
         characters.push_back(binary(rect).clone());
-        // showimg(binary(rect));
+
+        showimg(binary(rect));
     }
 
     // 读取模板图像
@@ -330,54 +274,24 @@ int main()    {
     cout << "成功加载 " << loadedTemplates << " 个模板" << endl;
 
     //进行匹配
-    recognitionResults.clear();
+    vector<string> s;
     for (int i=0;i<characters.size();i++) {
         Mat img=characters[i];
+
+        // showimg(charImgProcess(img));
+        // showimg(charImgProcess(templates[0]));
+        // showimg(charImgProcess(templates[1]));
+        // showimg(charImgProcess(templates[2]));
+        // showimg(charImgProcess(templates[3]));
+
         string ss=recognizeChar(img,templates,labels);
-        recognitionResults.push_back(ss);
+        s.push_back(ss);
     }
-    
-    // 创建结果图像
-    resultImage = resized.clone();
-    for (int i = 0; i < candidateRects.size() && i < recognitionResults.size(); i++) {
-        Rect rect = candidateRects[i];
-        string result = recognitionResults[i];
-        putText(resultImage, result, Point(rect.x, rect.y - 5), 
-                FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0, 255, 0), 2);
-    }
-    
-    if (!recognitionResults.empty()) {
-        cout << "识别结果: ";
-        for (auto x:recognitionResults){
-            cout<<x<<" ";
+    if (!s.empty()) {
+        for (auto x:s){
+        cout<<x<<" ";
         }
         cout<<endl;
-    }
-    
-    // 创建控制面板
-    createControlPanel();
-    
-    // 主循环
-    cout << "使用说明：" << endl;
-    cout << "1. 点击图像窗口切换显示模式" << endl;
-    cout << "2. 按 'q' 退出程序" << endl;
-    cout << "3. 按 '1' 显示原图" << endl;
-    cout << "4. 按 '2' 显示处理后的图像" << endl;
-    cout << "5. 按 '3' 显示识别结果" << endl;
-    
-    char key;
-    while (true) {
-        key = waitKey(1);
-        
-        if (key == 'q' || key == 27) { // q 或 ESC
-            break;
-        } else if (key == '1') {
-            imshow("车牌识别系统", originalImage);
-        } else if (key == '2') {
-            imshow("车牌识别系统", processedImage);
-        } else if (key == '3') {
-            imshow("车牌识别系统", resultImage);
-        }
     }
 
     return 0;
